@@ -60,11 +60,25 @@ async def handle_save_sales(message: types.Message):
                 percent = (total_sales / target) * 100
 
                 # Oylik hisobotni kiritish
-                cursor.execute(
-                    "INSERT INTO monthly_reports (user_id, month, year, total_sales, percent, day) VALUES (%s, %s, "
-                    "%s, %s, %s, %s)",
-                    (user_id, today.month, today.year, total_sales, percent, today.day))
-                connection.commit()
+                # cursor.execute(
+                #     "INSERT INTO monthly_reports (user_id, month, year, total_sales, percent, day) VALUES (%s, %s, "
+                #     "%s, %s, %s, %s)",
+                #     (user_id, today.month, today.year, total_sales, percent, today.day))
+                # connection.commit()
+                if percent >= 100:
+                    # Ma'lumotlarni `monthly_reports` jadvaliga qo'shish
+                    cursor.execute("INSERT INTO monthly_reports (user_id, month, year, total_sales, percent, "
+                                   "day) VALUES (%s, %s, %s, %s, %s, %s)", (user_id, today.month, today.year,
+                                                                            total_sales, percent, today.day))
+                    connection.commit()
+
+                    # `daily_sales` jadvalidan tozalash
+                    cursor.execute("DELETE FROM daily_sales WHERE user_id = %s", (user_id,))
+                    connection.commit()
+
+                    # Yangi savdo kiritish boshlanishi haqida xabar yuborish
+                    await message.reply(
+                        "Reja 100% bajarildi! Yangi oy uchun savdo boshlanadi. Yangi savdolarni kiritish mumkin.")
 
                 # Darajani aniqlash
                 if total_sales < 26000:
