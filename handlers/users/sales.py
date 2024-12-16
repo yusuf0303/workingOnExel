@@ -1,6 +1,6 @@
 import mysql.connector
 from aiogram import types
-from loader import dp
+from loader import dp, bot
 import datetime
 from handlers.users.admin import in_list
 
@@ -10,7 +10,7 @@ def get_db_connection():
         host="localhost",
         user="root",
         password="",
-        database="test"
+        database="sales_bot" 
     )
 
 
@@ -36,28 +36,49 @@ async def handle_save_sales(message: types.Message):
             today = datetime.date.today()
 
             # Bugungi kunda shartnomachi savdo kiritganmi tekshirish
-            cursor.execute("SELECT * FROM daily_sales WHERE user_id = %s AND date = %s", (user_id, today))
+            cursor.execute("SELECT * FROM daily_sales WHERE user_id = %s AND sale_date = %s", (user_id, today))
             existing_sale = cursor.fetchone()
 
             if existing_sale:
                 # Agar savdo bor bo'lsa, xabar yuborish
                 await message.reply("Bugun siz allaqachon savdo kiritdingiz. Iltimos, ertaga yana urinib ko'ring.")
             else:
-                # Savdo kiritish
-                cursor.execute("INSERT INTO daily_sales (user_id, sales, date) VALUES (%s, %s, %s)",
-                               (user_id, sales_value, today))
-                connection.commit()
-
                 # Jami savdolarni hisoblash
                 cursor.execute("SELECT SUM(sales) FROM daily_sales WHERE user_id = %s", (user_id,))
                 total_sales = cursor.fetchone()[0]
 
-                # Maqsadni olish
-                cursor.execute("SELECT target FROM users WHERE id = %s", (user_id,))
-                target = cursor.fetchone()[0]
+                if total_sales:
+                    # Maqsadni olish
+                    cursor.execute("SELECT target FROM users WHERE id = %s", (user_id,))
+                    target = cursor.fetchone()[0]
 
-                # Reja bajarilish foizi
-                percent = (total_sales / target) * 100
+                    # Reja bajarilish foizi
+                    percent = (total_sales / target) * 100
+
+                    # Savdo kiritish
+                    cursor.execute("INSERT INTO daily_sales (user_id, sales, sale_date, percent) VALUES (%s, %s, %s, %s)",
+                                (user_id, sales_value, today, percent))
+                    connection.commit()
+                else:
+                    cursor.execute("INSERT INTO daily_sales (user_id, sales, sale_date) VALUES (%s, %s, %s)",
+                                   (user_id, sales_value, today))
+                    connection.commit()
+
+                    cursor.execute("select target from users where id = %s", (user_id,))
+                    target = cursor.fetchone()[0]
+
+                    cursor.execute("SELECT SUM(sales) FROM daily_sales WHERE user_id = %s", (user_id,))
+                    total_sales = cursor.fetchone()[0]
+
+
+                    # cursor.execute("select percent from daily_sales where id = %s", (user_id,))
+                    # old_percent = cursor.fetchone()
+
+                    percent = (total_sales / target) * 100
+
+                    cursor.execute("UPDATE daily_sales SET percent = %s WHERE user_id = %s and percent = 0.00", 
+                                   (percent, user_id))
+                    connection.commit()
 
                 # Oylik hisobotni kiritish
                 # cursor.execute(
@@ -93,15 +114,17 @@ async def handle_save_sales(message: types.Message):
                 date = datetimes.strftime("%Y-%m-%d")
                 time = datetimes.strftime("%H:%M:%S")
 
-                cursor.execute("SELECT name FROM users WHERE telegram_id = %s", (user_id,))
+                cursor.execute("SELECT name FROM users WHERE telegram_id = %s", (message.from_user.id,))
                 name = cursor.fetchone()
 
-                await message.reply(
-                    f"{date} | {time}\n\n"
-                    f"👤: {name}\n🆔: {message.from_user.id}\n\n"
-                    f"Savdo qo'shildi 💰: {sales_value}$.\n"
-                    f"Jami savdo 💹: {total_sales}$.\nReja: {percent:.2f}% bajarildi {degree}"
-                )
+                message_text = (f"{date} | {time}\n\n"
+                                f"👤: {name[0]}\n🆔: {message.from_user.id}\n\n"
+                                f"Savdo qo'shildi 💰: {sales_value}$.\n"
+                                f"Jami savdo 💹: {total_sales}$.\nReja: {percent:.2f}% bajarildi {degree}")
+
+                await message.reply(message_text)
+
+                await bot.send_message(chat_id="-1002293235387", text=message_text)
 
                 cursor.close()
                 connection.close()

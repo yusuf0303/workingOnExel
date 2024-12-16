@@ -2,7 +2,6 @@ import mysql.connector
 from data.config import ADMINS
 from loader import dp
 from aiogram import types
-from keyboards.default.menu_btns import admin_btn
 
 
 # MySQL connection
@@ -11,7 +10,7 @@ def get_db_connection():
         host="localhost",
         user="root",
         password="",
-        database="test"
+        database="sales_bot"
     )
 
 
@@ -42,7 +41,7 @@ def add_admin(user_id, full_name):
 @dp.message_handler(commands=['admin'])
 async def admin_menu(message: types.Message):
     if message.from_user.id in ADMINS:
-        await message.reply("Admin menyusiga muvaffaqiyatli kirdingiz.", reply_markup=admin_btn())
+        await message.reply("Admin menyusiga muvaffaqiyatli kirdingiz.")
     else:
         await message.reply("Siz admin emassiz.")
 
@@ -62,13 +61,11 @@ async def send_reports(message: types.Message):
         cursor.execute("""
             SELECT u.name, u.telegram_id, u.role,
                    SUM(ds.sales) AS total_sales, 
-                   m.month, m.year, 
-                   m.percent
+                   ds.sale_date, ds.percent
             FROM users u
-            LEFT JOIN daily_sales ds ON u.id = ds.user_id
-            LEFT JOIN monthly_reports m ON u.id = m.user_id 
-            GROUP BY u.id, m.month, m.year
-            ORDER BY m.year DESC, m.month DESC;
+            LEFT JOIN daily_sales ds ON u.id = ds.user_id 
+            GROUP BY u.id
+            ORDER BY ds.sale_date DESC;
         """)
         reports = cursor.fetchall()
 
@@ -76,7 +73,7 @@ async def send_reports(message: types.Message):
             report_text = "Barcha shartnomachilarning jami savdolari:\n\n"
 
             for report in reports:
-                name, telegram_id, role, total_sales, month, year, percent = report
+                name, telegram_id, role, total_sales, sale_date, percent = report
 
                 if str(role) != "admin":
                     # Formatlashni faqat total_sales mavjud bo'lsa amalga oshiradi
@@ -91,7 +88,7 @@ async def send_reports(message: types.Message):
 
                     report_text += f"Shartnomachi: {name}\n"
                     report_text += f"Telegram ID: {telegram_id}\n"
-                    report_text += f"Hisobot: {month}/{year}\n"
+                    report_text += f"Hisobot: {sale_date}\n"
                     report_text += f"Jami savdo: {total_sales_text}\n"  # Bu yerda formatlash shartli bo'ladi
                     report_text += f"Reja bajarilgan: {percent_text}\n\n"
 
