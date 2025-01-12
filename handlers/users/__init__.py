@@ -3,4 +3,5 @@ from . import start
 from . import admin
 from . import contractor
 from . import sales
+from . import functions
 # from . import test

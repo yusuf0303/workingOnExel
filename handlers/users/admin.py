@@ -13,6 +13,10 @@ def get_db_connection():
         database="sales_bot"
     )
 
+# conn = get_db_connection()
+# cursor = conn.cursor()
+# print(cursor.execute("delete from users where telegram_id = 57928516"))
+
 
 def in_list(user_id):
     conn = get_db_connection()
